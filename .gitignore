@@ -1,0 +1,4 @@
+env/
+bank-statements
+bank_transactions_2023.csv
+.env
