@@ -9,8 +9,6 @@ statementsFolder = "./bank-statements"
 statement_included_previous_year_transactions = './bank-statements/in-between-years/f5409c4a-c421-40dc-a622-457581502421.pdf'
 
 
-
-
 ### extract data from bank statements
 # retrieved from Jan-2023 only
 statement = tabula.read_pdf(
