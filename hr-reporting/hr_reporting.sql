@@ -93,6 +93,7 @@ set @eom := '2021-10-01',
     @m := 'Male',
     @c := 'Contractors';
 
+
 -- headcount in September 2021: 123 (excl Contractors)
 -- new_hires: 7
 -- leavers: 4
@@ -104,7 +105,41 @@ from employees
 where startDate < @eom
 	and termDate is null
     and paymentGroup <> @c;
-     
+
+
+-- check new hires count each month
+with new_hires as (
+	select
+		date_format(startDate, '%Y-%m') period
+        ,count(*) employees
+	from employees
+    where paymentGroup <> @c and startDate is not null and date_format(startDate, '%Y-%m') > '2020-09'
+    group by 1
+	),
+    term as (
+	select
+		date_format(termDate, '%Y-%m') period
+        ,count(*) employees
+	from employees
+    where paymentGroup <> @c and termDate is not null and date_format(termDate, '%Y-%m') > '2020-09'
+    group by 1
+	)
+select 
+	period
+    ,ifnull(h.employees, 0) new_hires
+    ,ifnull(t.employees, 0) terminations
+from new_hires h
+left join term t using (period)
+union
+select 
+	period
+    ,coalesce(h.employees, 0)
+    ,coalesce(t.employees, 0)
+from new_hires h
+right join term t using (period)
+order by period;
+
+
 -- check turnover rate: 3.35%
 select @eom - interval 1 month;
 with cte as (
@@ -123,11 +158,12 @@ select
 	concat(round(term / ((start_of_mth + end_of_mth) / 2) * 100, 2), '%')
 from cte;
 
+
 -- check tenure
 set @sep_eom = '2021-09-30';
 
 with cte as (
-	select 
+	select
 		case
 			when startDate between @sep_eom - interval 6 month and @sep_eom then '< 6 mths'
 			when startDate between @sep_eom - interval 1 year and @sep_eom - interval 6 month then '< 6 mths - 1 yr'
@@ -157,7 +193,40 @@ select
 from cte
 order by tenure_ranking;
 
--- check age profile
+
+-- check tenure per business unit
+with cte as (
+	select	
+		substr(costCentre, 6, 4) businessUnit
+		,case
+			when startDate between @sep_eom - interval 6 month and @sep_eom then '< 6 mths'
+			when startDate between @sep_eom - interval 1 year and @sep_eom - interval 6 month then '< 6 mths - 1 yr'
+			when startDate between @sep_eom - interval 2 year and @sep_eom - interval 1 year then '< 1 - 2 yrs'
+			when startDate between @sep_eom - interval 3 year and @sep_eom - interval 2 year then '< 2 - 3 yrs'
+			when startDate between @sep_eom - interval 4 year and @sep_eom - interval 3 year then '< 3 - 4 yrs'
+		end tenure
+	from employees
+	where
+		startDate < @eom
+		and termDate is null
+		and paymentGroup <> @c
+	)
+select
+	businessUnit
+    ,buDescription
+    ,sum(tenure = '< 6 mths') '< 6 mths'
+    ,sum(tenure = '< 6 mths - 1 yr') '< 6 mths - 1 yr'
+    ,sum(tenure = '< 1 - 2 yrs') '< 1 - 2 yrs'
+    ,sum(tenure = '< 2 - 3 yrs') '< 2 - 3 yrs'
+    ,sum(tenure = '< 3 - 4 yrs') '< 3 - 4 yrs'
+    ,count(*)
+from cte
+join businessUnit b on cte.businessUnit = b.id
+group by businessUnit, buDescription
+order by 2;
+	
+
+-- check overall age profile
 with age as (
 	select
 		year(from_days(datediff(@sep_eom, dob))) age
@@ -186,6 +255,29 @@ select
     ,round(employees / (select sum(employees) from cte) * 100)
 from cte;
 
+
+-- check age profile per business unit
+select
+	businessUnit
+    ,buDescription
+    ,sum(age <= 35) '> 20 - 35 yrs'
+    ,sum(age between 36 and 45) '> 35 - 45 yrs'
+    ,sum(age > 45) '> 45 yrs'
+    ,round(sum(age <= 35) / count(*) * 100) '> 20 - 35 yrs - percentage'
+    ,round(sum(age between 36 and 45) / count(*) * 100) '> 35 - 45 yrs - percentage'
+    ,round(sum(age > 45) / count(*) * 100) '> 45 yrs - percentage'
+from (
+	select
+		substr(costCentre, 6, 4) businessUnit
+		,year(from_days(datediff(@sep_eom, dob))) age
+		from employees
+		where startDate < @eom and termDate is null and paymentGroup <> @c
+    ) t
+join businessUnit b on b.id = t.businessUnit
+group by businessUnit, buDescription
+order by 2;
+
+
 -- check overall gender
 select
 	sum(gender=@f) as female
@@ -203,6 +295,7 @@ where startDate < @eom
 	and termDate is null
     and paymentGroup <> @c;
 
+
 -- check gender per business unit
 select
 	substring(costCentre, 6, 4) businessUnit
@@ -214,30 +307,8 @@ select
 from employees e
 join businessUnit b on b.id = substring(costCentre, 6, 4)
 where
-	startDate < '2020-10-01'
+	startDate < @eom
     and termDate is null
-    and paymentGroup <> 'Contractors'
+    and paymentGroup <> @c
 group by 1, 2
 order by 2 desc;
-	
--- check new hires count each month
-select
-	year(startDate) as year
-    ,month(startDate) as month
-    ,count(startDate) new_hires
-    ,count(term)
-from ( 
-	select
-		year(termDate) as year
-        ,month(termDate) as month
-        ,count(termDate) term
-	from employees
-    where termDate > '2020-09-30'
-    group by year(termDate), month(termDate)
-) t
-join employees e on year(e.startDate) = t.year and month(e.startDate) = t.month
-where startDate > '2020-09-30'
-group by
-	year(startDate)
-    ,month(startDate)
-order by year, month;
