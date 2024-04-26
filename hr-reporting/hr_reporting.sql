@@ -312,3 +312,65 @@ where
     and paymentGroup <> @c
 group by 1, 2
 order by 2 desc;
+
+-- check employment status
+select
+	distinct paymentGroup
+    ,hours
+    ,round(hours / (38*52/12), 2) as FTE
+from employees
+order by 1;
+
+select
+	employeeId
+    ,paymentGroup
+    ,hours
+from employees
+where paymentGroup = 'PT 4wksAL NoLL 2wksPL' and hours = 22.8;
+
+-- update hours to the same hours if on .8FTE
+update employees
+set hours = 131.73
+where employeeId = 39;
+
+select
+	distinct status
+from employees;
+
+select
+	*
+from employees
+where paymentGroup = @c;
+
+-- check headcount per status per business unit
+select
+	substr(costCentre, 6, 4) businessUnit
+    ,buDescription
+	,sum(status='Full-time') fullTimers
+    ,sum(status='Part-time') partTimers
+    ,count(*) headcount
+from employees e
+join businessUnit b 
+on b.id = substr(e.costCentre, 6, 4)
+where 
+	startDate < @eom
+	and termDate is null
+	and paymentGroup <> @c
+group by 1, 2
+order by 2;
+
+-- check headcount and FTE equivalent
+select
+	substr(costCentre, 6, 4) businessUnit
+    ,buDescription
+	,round(sum(hours/164.67), 2) FTE
+    ,count(*) headcount
+from employees e
+join businessUnit b 
+	on b.id = substr(e.costCentre, 6, 4)
+where
+	startDate < @eom
+	and termDate is null
+	and paymentGroup <> @c
+group by 1, 2
+order by 2;
