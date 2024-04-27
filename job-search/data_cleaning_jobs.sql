@@ -92,7 +92,6 @@ SELECT
 FROM cte
 WHERE rn > 1;
 
-
 -- check distinct jobType
 select distinct jobType
 from Jobs;
@@ -267,5 +266,6 @@ from (
 join jobs_no_duplicates j using(timePosted, jobTitle, jobCompany, jobLocation, jobType, classification, subClassification);
 # return 405 rows
 
-select * from jobs_cleaned;
-
+-- let's check if our data was imported nicely
+select * from jobs_cleaned limit 10;
+select count(*) from jobs_cleaned;
