@@ -135,7 +135,32 @@ where ranking <= 5;
 -- check industry
 select
 	classification
-    ,count(*)
+    ,sum(state='NSW') NSW
+    ,sum(state='VIC') VIC
+    ,sum(state='QLD') QLD
+    ,sum(state='ACT') ACT
+    ,sum(state='TAS') TAS
+    ,sum(state='SA') SA
+    ,sum(state='WA') WA
+    ,sum(state='NT') NT
+    ,count(*) as total
 from jobs_cleaned
 group by 1
 order by 2 desc;
+
+select
+	distinct classification
+	,subClassification
+from jobs_cleaned
+order by 1;
+# it is safe to assume that data analyst (or those related roles identified previously) is indeed always in demand regardlesss of industry
+
+
+-- check company
+select
+	jobCompany
+    ,postedDate
+    ,count(*)
+from jobs_cleaned
+group by 1, 2
+order by 1, 2, 3 desc;

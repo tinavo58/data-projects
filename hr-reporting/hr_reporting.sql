@@ -92,6 +92,16 @@ set @eom := '2021-10-01',
 	@f := 'Female',
     @m := 'Male',
     @c := 'Contractors';
+-- create temporary table
+create temporary table September
+select
+	*
+from employees
+where startDate < @eom
+and termDate is null
+and paymentGroup <> @c;
+
+select count(*) from September;
 
 
 -- headcount in September 2021: 123 (excl Contractors)
@@ -318,7 +328,7 @@ select
 	distinct paymentGroup
     ,hours
     ,round(hours / (38*52/12), 2) as FTE
-from employees
+from September
 order by 1;
 
 select
@@ -359,12 +369,14 @@ where
 group by 1, 2
 order by 2;
 
--- check headcount and FTE equivalent
+-- check headcount, FTE equivalent, monthly salary
 select
 	substr(costCentre, 6, 4) businessUnit
     ,buDescription
-	,round(sum(hours/164.67), 2) FTE
     ,count(*) headcount
+	,round(sum(hours/164.67), 2) FTE
+    ,sum(round(rate * hours)) monthly_salary
+    ,round(sum(rate * hours) / count(*)) average_salary_per_employee
 from employees e
 join businessUnit b 
 	on b.id = substr(e.costCentre, 6, 4)
@@ -373,4 +385,15 @@ where
 	and termDate is null
 	and paymentGroup <> @c
 group by 1, 2
-order by 2;
+order by
+	average_salary_per_employee desc
+    ,monthly_salary desc
+    ,headcount desc;
+    
+select
+	substr(costCentre, 6, 4) businessUnit
+    ,buDescription
+    ,round(hours * rate) salary
+from September s
+join businessUnit b on b.id = substr(costCentre, 6, 4)
+order by 1;
