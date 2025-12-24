@@ -3,3 +3,5 @@ bank-statements
 .env
 .ipynb_checkpoints/
 *.csv
+z_csv_files/
+__pycache__
